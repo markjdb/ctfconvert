@@ -196,7 +196,7 @@ it_new(uint64_t index, size_t off, const char *name, uint32_t size,
 	assert((name != NULL) || !(flags & (ITF_FUNC|ITF_OBJ)));
 
 	it = pmalloc(&it_pool, sizeof(*it));
-	SIMPLEQ_INIT(&it->it_refs);
+	STAILQ_INIT(&it->it_refs);
 	TAILQ_INIT(&it->it_members);
 	it->it_off = off;
 	it->it_ref = ref;
@@ -336,14 +336,14 @@ ir_add(struct itype *it, struct itype *tmp)
 {
 	struct itref *ir;
 
-	SIMPLEQ_FOREACH(ir, &tmp->it_refs, ir_next) {
+	STAILQ_FOREACH(ir, &tmp->it_refs, ir_next) {
 		if (ir->ir_itp == it)
 			return;
 	}
 
 	ir = pmalloc(&ir_pool, sizeof(*ir));
 	ir->ir_itp = it;
-	SIMPLEQ_INSERT_TAIL(&tmp->it_refs, ir, ir_next);
+	STAILQ_INSERT_TAIL(&tmp->it_refs, ir, ir_next);
 }
 
 void
@@ -351,8 +351,8 @@ ir_purge(struct itype *it)
 {
 	struct itref *ir;
 
-	while ((ir = SIMPLEQ_FIRST(&it->it_refs)) != NULL) {
-		SIMPLEQ_REMOVE_HEAD(&it->it_refs, ir_next);
+	while ((ir = STAILQ_FIRST(&it->it_refs)) != NULL) {
+		STAILQ_REMOVE_HEAD(&it->it_refs, ir_next);
 		pfree(&ir_pool, ir);
 	}
 }
@@ -514,10 +514,10 @@ cu_merge(struct dwcu *dcu, struct itype_queue *cutq)
 			struct imember *im;
 
 			/* Substitute references */
-			while ((ir = SIMPLEQ_FIRST(&old->it_refs)) != NULL) {
+			while ((ir = STAILQ_FIRST(&old->it_refs)) != NULL) {
 				it = ir->ir_itp;
 
-				SIMPLEQ_REMOVE_HEAD(&old->it_refs, ir_next);
+				STAILQ_REMOVE_HEAD(&old->it_refs, ir_next);
 				pfree(&ir_pool, ir);
 
 				if (it->it_refp == old)
@@ -578,7 +578,7 @@ cu_parse(struct dwcu *dcu, struct itype_queue *cutq, struct ioff_tree *cuot)
 
 	assert(RB_EMPTY(cuot));
 
-	SIMPLEQ_FOREACH(die, &dcu->dcu_dies, die_next) {
+	STAILQ_FOREACH(die, &dcu->dcu_dies, die_next) {
 		uint64_t tag = die->die_dab->dab_tag;
 
 		switch (tag) {
@@ -689,7 +689,7 @@ parse_base(struct dwdie *die, size_t psz)
 	uint16_t encoding, enc = 0, bits = 0;
 	int type;
 
-	SIMPLEQ_FOREACH(dav, &die->die_avals, dav_next) {
+	STAILQ_FOREACH(dav, &die->die_avals, dav_next) {
 		switch (dav->dav_dat->dat_attr) {
 		case DW_AT_encoding:
 			enc = dav2val(dav, psz);
@@ -771,7 +771,7 @@ parse_refers(struct dwdie *die, size_t psz, int type)
 	const char *name = NULL;
 	size_t ref = 0, size = 0;
 
-	SIMPLEQ_FOREACH(dav, &die->die_avals, dav_next) {
+	STAILQ_FOREACH(dav, &die->die_avals, dav_next) {
 		switch (dav->dav_dat->dat_attr) {
 		case DW_AT_name:
 			name = dav2str(dav);
@@ -812,7 +812,7 @@ parse_array(struct dwdie *die, size_t psz)
 	const char *name = NULL;
 	size_t ref = 0;
 
-	SIMPLEQ_FOREACH(dav, &die->die_avals, dav_next) {
+	STAILQ_FOREACH(dav, &die->die_avals, dav_next) {
 		switch (dav->dav_dat->dat_attr) {
 		case DW_AT_name:
 			name = dav2str(dav);
@@ -842,7 +842,7 @@ parse_enum(struct dwdie *die, size_t psz)
 	const char *name = NULL;
 	size_t size = 0;
 
-	SIMPLEQ_FOREACH(dav, &die->die_avals, dav_next) {
+	STAILQ_FOREACH(dav, &die->die_avals, dav_next) {
 		switch (dav->dav_dat->dat_attr) {
 		case DW_AT_byte_size:
 			size = dav2val(dav, psz);
@@ -878,14 +878,14 @@ subparse_subrange(struct dwdie *die, size_t psz, struct itype *it)
 	 * This loop assumes that the children of a DIE are just
 	 * after it on the list.
 	 */
-	while ((die = SIMPLEQ_NEXT(die, die_next)) != NULL) {
+	while ((die = STAILQ_NEXT(die, die_next)) != NULL) {
 		uint64_t tag = die->die_dab->dab_tag;
 		size_t nelems = 0;
 
 		if (tag != DW_TAG_subrange_type)
 			break;
 
-		SIMPLEQ_FOREACH(dav, &die->die_avals, dav_next) {
+		STAILQ_FOREACH(dav, &die->die_avals, dav_next) {
 			switch (dav->dav_dat->dat_attr) {
 			case DW_AT_count:
 				nelems = dav2val(dav, psz);
@@ -920,7 +920,7 @@ subparse_enumerator(struct dwdie *die, size_t psz, struct itype *it)
 	 * This loop assumes that the children of a DIE are just
 	 * after it on the list.
 	 */
-	while ((die = SIMPLEQ_NEXT(die, die_next)) != NULL) {
+	while ((die = STAILQ_NEXT(die, die_next)) != NULL) {
 		uint64_t tag = die->die_dab->dab_tag;
 		size_t val = 0;
 		const char *name = NULL;
@@ -928,7 +928,7 @@ subparse_enumerator(struct dwdie *die, size_t psz, struct itype *it)
 		if (tag != DW_TAG_enumerator)
 			break;
 
-		SIMPLEQ_FOREACH(dav, &die->die_avals, dav_next) {
+		STAILQ_FOREACH(dav, &die->die_avals, dav_next) {
 			switch (dav->dav_dat->dat_attr) {
 			case DW_AT_name:
 				name = dav2str(dav);
@@ -963,7 +963,7 @@ parse_struct(struct dwdie *die, size_t psz, int type, size_t off)
 	const char *name = NULL;
 	size_t size = 0;
 
-	SIMPLEQ_FOREACH(dav, &die->die_avals, dav_next) {
+	STAILQ_FOREACH(dav, &die->die_avals, dav_next) {
 		switch (dav->dav_dat->dat_attr) {
 		case DW_AT_byte_size:
 			size = dav2val(dav, psz);
@@ -1003,7 +1003,7 @@ subparse_member(struct dwdie *die, size_t psz, struct itype *it, size_t offset)
 	 * This loop assumes that the children of a DIE are just
 	 * after it on the list.
 	 */
-	while ((die = SIMPLEQ_NEXT(die, die_next)) != NULL) {
+	while ((die = STAILQ_NEXT(die, die_next)) != NULL) {
 		int64_t tag = die->die_dab->dab_tag;
 
 		name = NULL;
@@ -1026,7 +1026,7 @@ subparse_member(struct dwdie *die, size_t psz, struct itype *it, size_t offset)
 
 		it->it_flags |= ITF_UNRES_MEMB;
 
-		SIMPLEQ_FOREACH(dav, &die->die_avals, dav_next) {
+		STAILQ_FOREACH(dav, &die->die_avals, dav_next) {
 			switch (dav->dav_dat->dat_attr) {
 			case DW_AT_name:
 				name = dav2str(dav);
@@ -1080,7 +1080,7 @@ subparse_arguments(struct dwdie *die, size_t psz, struct itype *it)
 	 * This loop assumes that the children of a DIE are after it
 	 * on the list.
 	 */
-	while ((die = SIMPLEQ_NEXT(die, die_next)) != NULL) {
+	while ((die = STAILQ_NEXT(die, die_next)) != NULL) {
 		uint64_t tag = die->die_dab->dab_tag;
 
 		if (tag == DW_TAG_unspecified_parameters) {
@@ -1104,7 +1104,7 @@ subparse_arguments(struct dwdie *die, size_t psz, struct itype *it)
 
 		it->it_flags |= ITF_UNRES_MEMB;
 
-		SIMPLEQ_FOREACH(dav, &die->die_avals, dav_next) {
+		STAILQ_FOREACH(dav, &die->die_avals, dav_next) {
 			switch (dav->dav_dat->dat_attr) {
 			case DW_AT_type:
 				ref = dav2val(dav, psz);
@@ -1131,7 +1131,7 @@ parse_function(struct dwdie *die, size_t psz)
 	const char *name = NULL;
 	size_t ref = 0;
 
-	SIMPLEQ_FOREACH(dav, &die->die_avals, dav_next) {
+	STAILQ_FOREACH(dav, &die->die_avals, dav_next) {
 		switch (dav->dav_dat->dat_attr) {
 		case DW_AT_name:
 			name = dav2str(dav);
@@ -1181,7 +1181,7 @@ parse_funcptr(struct dwdie *die, size_t psz)
 	const char *name = NULL;
 	size_t ref = 0;
 
-	SIMPLEQ_FOREACH(dav, &die->die_avals, dav_next) {
+	STAILQ_FOREACH(dav, &die->die_avals, dav_next) {
 		switch (dav->dav_dat->dat_attr) {
 		case DW_AT_name:
 			name = dav2str(dav);
@@ -1219,7 +1219,7 @@ parse_variable(struct dwdie *die, size_t psz)
 	size_t ref = 0;
 	int declaration = 0;
 
-	SIMPLEQ_FOREACH(dav, &die->die_avals, dav_next) {
+	STAILQ_FOREACH(dav, &die->die_avals, dav_next) {
 		switch (dav->dav_dat->dat_attr) {
 		case DW_AT_declaration:
 			declaration = dav2val(dav, psz);

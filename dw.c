@@ -372,7 +372,7 @@ dw_attr_parse(struct dwbuf *dwbuf, struct dwattr *dat, uint8_t psz,
 		return error;
 	}
 
-	SIMPLEQ_INSERT_TAIL(davq, dav, dav_next);
+	STAILQ_INSERT_TAIL(davq, dav, dav_next);
 	return 0;
 }
 
@@ -381,12 +381,12 @@ dw_attr_purge(struct dwaval_queue *davq)
 {
 	struct dwaval	*dav;
 
-	while ((dav = SIMPLEQ_FIRST(davq)) != NULL) {
-		SIMPLEQ_REMOVE_HEAD(davq, dav_next);
+	while ((dav = STAILQ_FIRST(davq)) != NULL) {
+		STAILQ_REMOVE_HEAD(davq, dav_next);
 		pfree(&dav_pool, dav);
 	}
 
-	SIMPLEQ_INIT(davq);
+	STAILQ_INIT(davq);
 }
 
 static int
@@ -412,7 +412,7 @@ dw_die_parse(struct dwbuf *dwbuf, size_t nextoff, uint8_t psz,
 			continue;
 		}
 
-		SIMPLEQ_FOREACH(dab, dabq, dab_next) {
+		STAILQ_FOREACH(dab, dabq, dab_next) {
 			if (dab->dab_code == code)
 				break;
 		}
@@ -426,9 +426,9 @@ dw_die_parse(struct dwbuf *dwbuf, size_t nextoff, uint8_t psz,
 		die->die_lvl = lvl;
 		die->die_dab = dab;
 		die->die_offset = doff;
-		SIMPLEQ_INIT(&die->die_avals);
+		STAILQ_INIT(&die->die_avals);
 
-		SIMPLEQ_FOREACH(dat, &dab->dab_attrs, dat_next) {
+		STAILQ_FOREACH(dat, &dab->dab_attrs, dat_next) {
 			error = dw_attr_parse(dwbuf, dat, psz, &die->die_avals);
 			if (error != 0) {
 				dw_attr_purge(&die->die_avals);
@@ -439,7 +439,7 @@ dw_die_parse(struct dwbuf *dwbuf, size_t nextoff, uint8_t psz,
 		if (dab->dab_children == DW_CHILDREN_yes)
 			lvl++;
 
-		SIMPLEQ_INSERT_TAIL(dieq, die, die_next);
+		STAILQ_INSERT_TAIL(dieq, die, die_next);
 	}
 
 	return 0;
@@ -450,13 +450,13 @@ dw_die_purge(struct dwdie_queue *dieq)
 {
 	struct dwdie	*die;
 
-	while ((die = SIMPLEQ_FIRST(dieq)) != NULL) {
-		SIMPLEQ_REMOVE_HEAD(dieq, die_next);
+	while ((die = STAILQ_FIRST(dieq)) != NULL) {
+		STAILQ_REMOVE_HEAD(dieq, die_next);
 		dw_attr_purge(&die->die_avals);
 		pfree(&die_pool, die);
 	}
 
-	SIMPLEQ_INIT(dieq);
+	STAILQ_INIT(dieq);
 }
 
 int
@@ -484,9 +484,9 @@ dw_ab_parse(struct dwbuf *abseg, struct dwabbrev_queue *dabq)
 		dab->dab_code = code;
 		dab->dab_tag = tag;
 		dab->dab_children = children;
-		SIMPLEQ_INIT(&dab->dab_attrs);
+		STAILQ_INIT(&dab->dab_attrs);
 
-		SIMPLEQ_INSERT_TAIL(dabq, dab, dab_next);
+		STAILQ_INSERT_TAIL(dabq, dab, dab_next);
 
 		for (;;) {
 			struct dwattr *dat;
@@ -506,7 +506,7 @@ dw_ab_parse(struct dwbuf *abseg, struct dwabbrev_queue *dabq)
 			dat->dat_attr = attr;
 			dat->dat_form = form;
 
-			SIMPLEQ_INSERT_TAIL(&dab->dab_attrs, dat, dat_next);
+			STAILQ_INSERT_TAIL(&dab->dab_attrs, dat, dat_next);
 		}
 	}
 
@@ -518,19 +518,19 @@ dw_dabq_purge(struct dwabbrev_queue *dabq)
 {
 	struct dwabbrev	*dab;
 
-	while ((dab = SIMPLEQ_FIRST(dabq)) != NULL) {
+	while ((dab = STAILQ_FIRST(dabq)) != NULL) {
 		struct dwattr *dat;
 
-		SIMPLEQ_REMOVE_HEAD(dabq, dab_next);
-		while ((dat = SIMPLEQ_FIRST(&dab->dab_attrs)) != NULL) {
-			SIMPLEQ_REMOVE_HEAD(&dab->dab_attrs, dat_next);
+		STAILQ_REMOVE_HEAD(dabq, dab_next);
+		while ((dat = STAILQ_FIRST(&dab->dab_attrs)) != NULL) {
+			STAILQ_REMOVE_HEAD(&dab->dab_attrs, dat_next);
 			pfree(&dat_pool, dat);
 		}
 
 		pfree(&dab_pool, dab);
 	}
 
-	SIMPLEQ_INIT(dabq);
+	STAILQ_INIT(dabq);
 }
 
 int
@@ -599,8 +599,8 @@ dw_cu_parse(struct dwbuf *info, struct dwbuf *abbrev, size_t seglen,
 	dcu->dcu_version = version;
 	dcu->dcu_abbroff = abbroff;
 	dcu->dcu_psize = psz;
-	SIMPLEQ_INIT(&dcu->dcu_abbrevs);
-	SIMPLEQ_INIT(&dcu->dcu_dies);
+	STAILQ_INIT(&dcu->dcu_abbrevs);
+	STAILQ_INIT(&dcu->dcu_dies);
 
 	error = dw_ab_parse(&abseg, &dcu->dcu_abbrevs);
 	if (error != 0) {

@@ -18,7 +18,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/exec_elf.h>
+#include <sys/elf.h>
 #include <sys/mman.h>
 #include <sys/queue.h>
 #include <sys/tree.h>
@@ -26,6 +26,7 @@
 
 #include <assert.h>
 #include <err.h>
+#include <inttypes.h>
 #include <fcntl.h>
 #include <locale.h>
 #include <stdio.h>
@@ -45,8 +46,9 @@
 #define DEBUG_INFO	".debug_info"
 #define DEBUG_LINE	".debug_line"
 #define DEBUG_STR	".debug_str"
+#define ELF_STRTAB	".symtab"
 
-__dead void	 usage(void);
+__dead2 void	 usage(void);
 int		 convert(const char *);
 int		 generate(const char *, const char *, int);
 int		 elf_convert(char *, size_t);
@@ -74,7 +76,7 @@ struct itype_queue itypeq = TAILQ_HEAD_INITIALIZER(itypeq);
 struct itype_queue ifuncq = TAILQ_HEAD_INITIALIZER(ifuncq);
 struct itype_queue iobjq = TAILQ_HEAD_INITIALIZER(iobjq);
 
-__dead void
+__dead2 void
 usage(void)
 {
 	fprintf(stderr, "usage: %s [-d] -l label -o outfile file\n",
@@ -92,8 +94,10 @@ main(int argc, char *argv[])
 
 	setlocale(LC_ALL, "");
 
+#ifdef __OpenBSD__
 	if (pledge("stdio rpath wpath cpath", NULL) == -1)
 		err(1, "pledge");
+#endif
 
 	while ((ch = getopt(argc, argv, "dl:o:")) != -1) {
 		switch (ch) {
@@ -132,8 +136,10 @@ main(int argc, char *argv[])
 		return error;
 
 	if (outfile != NULL) {
+#ifdef __OpenBSD__
 		if (pledge("stdio wpath cpath", NULL) == -1)
 			err(1, "pledge");
+#endif
 
 		error = generate(outfile, label, 1);
 		if (error != 0)
@@ -141,8 +147,10 @@ main(int argc, char *argv[])
 	}
 
 	if (dump) {
+#ifdef __OpenBSD__
 		if (pledge("stdio", NULL) == -1)
 			err(1, "pledge");
+#endif
 
 		int fidx = -1, oidx = -1;
 
@@ -468,7 +476,7 @@ dump_obj(struct itype *it, int *idx)
 	(*idx)++;
 
 	l = printf("  [%u] %u", (*idx), it->it_refp->it_idx);
-	printf("%*s %s (%llu)\n", 14 - l, "", it_name(it), it->it_ref);
+	printf("%*s %s (%"PRId64")\n", 14 - l, "", it_name(it), it->it_ref);
 }
 
 const char *

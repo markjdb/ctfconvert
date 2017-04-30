@@ -17,13 +17,16 @@
  */
 
 #include <sys/types.h>
-#include <sys/exec_elf.h>
+#include <sys/elf.h>
 
 #include <machine/reloc.h>
 
 #include <assert.h>
 #include <err.h>
 #include <string.h>
+
+#define ELF_SYMTAB	".symtab"
+#define Elf_RelA	__CONCAT(__CONCAT(Elf,__ELF_WORD_SIZE),_Rela)
 
 static int	elf_reloc_size(unsigned long);
 static void	elf_reloc_apply(const char *, size_t, const char *, size_t,
@@ -42,7 +45,7 @@ iself(const char *p, size_t filesize)
 	if (eh->e_ehsize < sizeof(Elf_Ehdr) || !IS_ELF(*eh))
 		return 0;
 
-	if (eh->e_ident[EI_CLASS] != ELFCLASS) {
+	if (eh->e_ident[EI_CLASS] != ELF_CLASS) {
 		warnx("unexpected word size %u", eh->e_ident[EI_CLASS]);
 		return 0;
 	}
@@ -50,7 +53,7 @@ iself(const char *p, size_t filesize)
 		warnx("unexpected version %u", eh->e_ident[EI_VERSION]);
 		return 0;
 	}
-	if (eh->e_ident[EI_DATA] >= ELFDATANUM) {
+	if (eh->e_ident[EI_DATA] > ELFDATA2MSB) {
 		warnx("unexpected data format %u", eh->e_ident[EI_DATA]);
 		return 0;
 	}

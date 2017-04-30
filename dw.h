@@ -25,13 +25,13 @@ struct dwbuf {
 };
 
 struct dwattr {
-	SIMPLEQ_ENTRY(dwattr)	 dat_next;
+	STAILQ_ENTRY(dwattr)	 dat_next;
 	uint64_t		 dat_attr;
 	uint64_t		 dat_form;
 };
 
 struct dwaval {
-	SIMPLEQ_ENTRY(dwaval)	 dav_next;
+	STAILQ_ENTRY(dwaval)	 dav_next;
 	struct dwattr		*dav_dat;	/* corresponding attribute */
 	union {
 		struct dwbuf	 _buf;
@@ -55,27 +55,27 @@ struct dwaval {
 #define dav_u8	AV._V._T._u8
 };
 
-SIMPLEQ_HEAD(dwaval_queue, dwaval);
+STAILQ_HEAD(dwaval_queue, dwaval);
 
 struct dwdie {
-	SIMPLEQ_ENTRY(dwdie)	 die_next;
+	STAILQ_ENTRY(dwdie)	 die_next;
 	struct dwabbrev		*die_dab;
 	size_t			 die_offset;
 	uint8_t			 die_lvl;
 	struct dwaval_queue	 die_avals;
 };
 
-SIMPLEQ_HEAD(dwdie_queue, dwdie);
+STAILQ_HEAD(dwdie_queue, dwdie);
 
 struct dwabbrev {
-	SIMPLEQ_ENTRY(dwabbrev)	 dab_next;
+	STAILQ_ENTRY(dwabbrev)	 dab_next;
 	uint64_t		 dab_code;
 	uint64_t		 dab_tag;
 	uint8_t			 dab_children;
-	SIMPLEQ_HEAD(, dwattr)	 dab_attrs;
+	STAILQ_HEAD(, dwattr)	 dab_attrs;
 };
 
-SIMPLEQ_HEAD(dwabbrev_queue, dwabbrev);
+STAILQ_HEAD(dwabbrev_queue, dwabbrev);
 
 struct dwcu {
 	uint64_t		 dcu_length;

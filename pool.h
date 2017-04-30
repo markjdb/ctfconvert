@@ -22,7 +22,7 @@
 #ifndef NOPOOL
 
 struct pool {
-	SIMPLEQ_ENTRY(pool)	 pr_list;	/* list of all pools */
+	STAILQ_ENTRY(pool)	 pr_list;	/* list of all pools */
 	const char		*pr_name;	/* identifier */
 	SLIST_HEAD(, pool_item)  pr_free;	/* free list */
 	size_t			 pr_nmemb;	/* # of items per allocation */

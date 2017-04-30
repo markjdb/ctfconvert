@@ -36,7 +36,7 @@ struct pool_item {
 	SLIST_ENTRY(pool_item) pi_list;
 };
 
-SIMPLEQ_HEAD(, pool) pool_head = SIMPLEQ_HEAD_INITIALIZER(pool_head);
+STAILQ_HEAD(, pool) pool_head = STAILQ_HEAD_INITIALIZER(pool_head);
 
 void
 pool_init(struct pool *pp, const char *name, size_t nmemb, size_t size)
@@ -50,7 +50,7 @@ pool_init(struct pool *pp, const char *name, size_t nmemb, size_t size)
 	pp->pr_nitems = 0;
 	pp->pr_nfree = 0;
 
-	SIMPLEQ_INSERT_TAIL(&pool_head, pp, pr_list);
+	STAILQ_INSERT_TAIL(&pool_head, pp, pr_list);
 }
 
 void *
@@ -98,7 +98,7 @@ pool_dump(void)
 {
 	struct pool *pp;
 
-	SIMPLEQ_FOREACH(pp, &pool_head, pr_list)
+	STAILQ_FOREACH(pp, &pool_head, pr_list)
 		printf("%s: %zd items, %zd free\n", pp->pr_name, pp->pr_nitems,
 		    pp->pr_nfree);
 }
