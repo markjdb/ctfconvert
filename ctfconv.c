@@ -17,6 +17,9 @@
  */
 
 #include <sys/types.h>
+#ifdef __FreeBSD__
+#include <sys/capsicum.h>
+#endif
 #include <sys/stat.h>
 #include <sys/elf.h>
 #include <sys/mman.h>
@@ -49,8 +52,8 @@
 #define ELF_STRTAB	".symtab"
 
 __dead2 void	 usage(void);
-int		 convert(const char *);
-int		 generate(const char *, const char *, int);
+int		 convert(int, const char *);
+int		 generate(int fd, const char *, const char *, int);
 int		 elf_convert(char *, size_t);
 void		 elf_sort(void);
 struct itype	*find_symb(struct itype *, size_t);
@@ -87,9 +90,13 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
+#ifdef __FreeBSD__
+	cap_rights_t ifdrights, ofdrights;
+#endif
 	const char *filename, *label = NULL, *outfile = NULL;
 	int dump = 0;
 	int ch, error = 0;
+	int ifd, ofd;
 	struct itype *it;
 
 	setlocale(LC_ALL, "");
@@ -131,9 +138,39 @@ main(int argc, char *argv[])
 		usage();
 
 	filename = *argv;
-	error = convert(filename);
+	ifd = open(filename, O_RDONLY);
+	if (ifd == -1) {
+		warn("open %s", filename);
+		return 1;
+	}
+
+	if (outfile != NULL) {
+		ofd = open(outfile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+		if (ofd == -1) {
+			warn("open %s", outfile);
+			return -1;
+		}
+	}
+
+#ifdef __FreeBSD__
+	if (cap_enter()) {
+		warn("cap_enter");
+		return -1;
+	}
+
+	cap_rights_init(&ifdrights, CAP_FSTAT, CAP_MMAP_R);
+	cap_rights_init(&ofdrights, CAP_WRITE);
+	if (cap_rights_limit(ifd, &ifdrights) == -1 ||
+	    cap_rights_limit(ofd, &ofdrights) == -1) {
+		warn("cap_rights_limit");
+		return -1;
+	}
+#endif
+
+	error = convert(ifd, filename);
 	if (error != 0)
 		return error;
+	close(ifd);
 
 	if (outfile != NULL) {
 #ifdef __OpenBSD__
@@ -141,9 +178,10 @@ main(int argc, char *argv[])
 			err(1, "pledge");
 #endif
 
-		error = generate(outfile, label, 1);
+		error = generate(ofd, outfile, label, 1);
 		if (error != 0)
 			return error;
+		close(ofd);
 	}
 
 	if (dump) {
@@ -176,17 +214,12 @@ main(int argc, char *argv[])
 }
 
 int
-convert(const char *path)
+convert(int fd, const char *path)
 {
 	struct stat		 st;
-	int			 fd, error = 1;
+	int			 error = 1;
 	char			*p;
 
-	fd = open(path, O_RDONLY);
-	if (fd == -1) {
-		warn("open %s", path);
-		return 1;
-	}
 	if (fstat(fd, &st) == -1) {
 		warn("fstat %s", path);
 		close(fd);
@@ -206,7 +239,6 @@ convert(const char *path)
 		error = elf_convert(p, st.st_size);
 
 	munmap(p, st.st_size);
-	close(fd);
 
 	return error;
 }

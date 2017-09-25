@@ -340,13 +340,13 @@ imcs_generate(struct imcs *imcs, struct ctf_header *cth, const char *label)
  * Generate a CTF buffer from the internal type representation.
  */
 int
-generate(const char *path, const char *label, int compress)
+generate(int fd, const char *path, const char *label, int compress)
 {
 	char			*p, *ctfdata = NULL;
 	ssize_t			 ctflen;
 	struct ctf_header	 cth;
 	struct imcs		 imcs;
-	int			 error = 0, fd;
+	int			 error = 0;
 
 	memset(&cth, 0, sizeof(cth));
 
@@ -394,19 +394,11 @@ generate(const char *path, const char *label, int compress)
 	}
 #endif /* ZLIB */
 
-	fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-	if (fd == -1) {
-		warn("open %s", path);
-		free(ctfdata);
-		return -1;
-	}
-
 	if (write(fd, ctfdata, ctflen) != ctflen) {
 		warn("unable to write %zd bytes for %s", ctflen, path);
 		error = -1;
 	}
 
-	close(fd);
 	free(ctfdata);
 	return error;
 }
