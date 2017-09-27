@@ -49,7 +49,7 @@
 #define DEBUG_INFO	".debug_info"
 #define DEBUG_LINE	".debug_line"
 #define DEBUG_STR	".debug_str"
-#define ELF_STRTAB	".symtab"
+#define ELF_STRTAB	".strtab"
 
 __dead2 void	 usage(void);
 int		 convert(int, const char *);
