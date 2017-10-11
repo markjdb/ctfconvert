@@ -36,7 +36,7 @@ struct itype {
 	TAILQ_ENTRY(itype)	 it_symb;   /* itype: global queue of symbol */
 	RB_ENTRY(itype)		 it_node;   /* itype: per-type tree of types */
 
-	STAILQ_HEAD(, itref)	 it_refs;   /* itpye: backpointing refs */
+	STAILQ_HEAD(, itref)	 it_refs;   /* itype: backpointing refs */
 
 	TAILQ_HEAD(, imember)	 it_members;/* itype: members of struct/union */
 
