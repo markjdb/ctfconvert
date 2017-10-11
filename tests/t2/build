@@ -1,0 +1,4 @@
+#!/bin/sh
+
+cc -o t -g main.c t1.c t2.c
+$CTFCONV -l VERSION -o t.ctf t
