@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 #include "t.h"
 
 struct a *
