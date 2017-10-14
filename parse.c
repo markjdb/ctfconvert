@@ -296,8 +296,7 @@ it_cmp(struct itype *a, struct itype *b)
 	struct imember *ma, *mb;
 	int diff;
 
-	/* XXX this is supposedly wrong */
-	if (a->it_gen > itype_gen_start && b->it_gen > itype_gen_start) {
+	if (a->it_gen > itype_gen_start || b->it_gen > itype_gen_start) {
 		if (a->it_gen != b->it_gen)
 			return a->it_gen < b->it_gen ? -1 : 1;
 		return 0;
