@@ -62,6 +62,9 @@ RB_HEAD(ioff_tree, itype);
  */
 RB_HEAD(itype_tree, itype)	 itypet[CTF_K_MAX];
 
+/* XXX */
+static uint64_t itype_gen, itype_gen_start;
+
 /*
  * Tree of symbols used to build a list matching the order of
  * the ELF symbol table.
@@ -207,6 +210,7 @@ it_new(uint64_t index, size_t off, const char *name, uint32_t size,
 	it->it_idx = index;
 	it->it_type = type;
 	it->it_flags = flags;
+	it->it_gen = 0;
 
 	if (name == NULL) {
 		it->it_flags |= ITF_ANON;
@@ -231,6 +235,7 @@ it_dup(struct itype *it)
 
 	copit->it_refp = it->it_refp;
 	copit->it_nelems = it->it_nelems;
+	/* XXX it_gen? */
 
 	TAILQ_FOREACH(im, &it->it_members, im_next) {
 		copim = im_new(im_name(im), im->im_ref, im->im_off);
@@ -288,7 +293,15 @@ it_free(struct itype *it)
 int
 it_cmp(struct itype *a, struct itype *b)
 {
+	struct imember *ma, *mb;
 	int diff;
+
+	/* XXX this is supposedly wrong */
+	if (a->it_gen > itype_gen_start && b->it_gen > itype_gen_start) {
+		if (a->it_gen != b->it_gen)
+			return a->it_gen < b->it_gen ? -1 : 1;
+		return 0;
+	}
 
 	if ((diff = (a->it_type - b->it_type)) != 0)
 		return diff;
@@ -300,18 +313,38 @@ it_cmp(struct itype *a, struct itype *b)
 		return diff;
 
 	/* Match by name */
-	if (!(a->it_flags & ITF_ANON) && !(b->it_flags & ITF_ANON))
-		return strcmp(it_name(a), it_name(b));
+	if (!(a->it_flags & ITF_ANON) && !(b->it_flags & ITF_ANON) &&
+	    (diff = strcmp(it_name(a), it_name(b))) != 0)
+		return diff;
 
 	/* Only one of them is anonym */
 	if ((a->it_flags & ITF_ANON) != (b->it_flags & ITF_ANON))
 		return (a->it_flags & ITF_ANON) ? -1 : 1;
 
 	/* Match by reference */
-	if ((a->it_refp != NULL) && (b->it_refp != NULL))
+	if (a->it_refp != NULL && b->it_refp != NULL)
 		return it_cmp(a->it_refp, b->it_refp);
 
-	return 1;
+	a->it_gen = b->it_gen = itype_gen++;
+	ma = TAILQ_FIRST(&a->it_members);
+	mb = TAILQ_FIRST(&b->it_members);
+	while (ma != NULL && mb != NULL) {
+		/* XXX can these be anonym? */
+		if ((diff = strcmp(ma->im_name, mb->im_name)) != 0)
+			return diff;
+
+		if (a->it_type == CTF_K_ENUM) {
+			if (ma->im_ref != mb->im_ref)
+				return ma->im_ref < mb->im_ref ? -1 : 1;
+		} else {
+			if ((diff = it_cmp(ma->im_refp, mb->im_refp)) != 0)
+				return diff;
+		}
+		ma = TAILQ_NEXT(ma, im_next);
+		mb = TAILQ_NEXT(mb, im_next);
+	}
+
+	return ma != mb;
 }
 
 int
@@ -397,6 +430,7 @@ cu_stat(void)
 	pool_dump();
 #endif
 }
+
 /*
  * Worst case it's a O(n*n) resolution lookup, with ``n'' being the number
  * of elements in ``cutq''.
@@ -496,7 +530,10 @@ cu_merge(struct dwcu *dcu, struct itype_queue *cutq)
 			/*
 			 * FIXME: allow static variables with the same name
 			 * to be of different type.
+			 * XXX
 			 */
+			itype_gen_start = itype_gen + 1;
+			itype_gen = itype_gen_start + 1;
 			if (RB_FIND(isymb_tree, &isymbt, it) == NULL)
 				RB_INSERT(isymb_tree, &isymbt, it);
 			continue;

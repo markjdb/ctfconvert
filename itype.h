@@ -63,6 +63,8 @@ struct itype {
 #define	ITF_USED		 0x40	    /* referenced in the current CU */
 #define	ITF_ANON		 0x80	    /* type without name */
 #define	ITF_MASK		(ITF_INSERTED|ITF_USED)
+
+	uint64_t		 it_gen;    /* graph visitation generation */
 };
 
 /*
