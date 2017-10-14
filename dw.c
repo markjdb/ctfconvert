@@ -658,7 +658,7 @@ dw_loc_parse(struct dwbuf *dwbuf, uint8_t *pop, uint64_t *poper1,
 	case DW_OP_consts:
 	case DW_OP_breg0 ... DW_OP_breg31:
 	case DW_OP_fbreg:
-		dw_read_sleb128(dwbuf, &oper1);
+		dw_read_sleb128(dwbuf, (int64_t *)&oper1);
 		break;
 	default:
 		return ENOTSUP;
