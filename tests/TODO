@@ -1,0 +1,4 @@
+- varargs
+- arrays of size 0
+- empty structs
+- bitfields
